@@ -8,6 +8,11 @@ from aes_gcm.experiments.benchmark import encryption_benchmark, decryption_bench
 
 from signal.experiments.demo import run_standard_signal_demo, run_anamorphic_signal_demo
 
+from signal.protocols.signal import SignalProtocol
+from signal.protocols.covert_keyspace_extension import CovertKeyspaceProtocol
+from signal.experiments.demo import run_standard_signal_demo, run_anamorphic_signal_demo
+from signal.experiments.benchmark import signal_encryption_benchmark_pair, signal_decryption_benchmark_pair
+
 from plots import plot_overhead
 
 
@@ -68,3 +73,49 @@ run_standard_signal_demo()
 
 print("\n=== Anamorphic Covert-Keyspace Demo ===")
 run_anamorphic_signal_demo()
+
+# --- Signal benchmark setup ---
+signal_msg_lengths = [64]  # keep smaller for Signal (ratchet cost is high)
+signal_iterations = 5  # smaller to reduce runtime
+
+standard_enc_times = []
+anamorphic_enc_times = []
+standard_dec_times = []
+anamorphic_dec_times = []
+
+
+for msg_len in signal_msg_lengths:
+    print(f"Benchmarking Signal messages of length {msg_len} bytes...")
+
+    # Initialize Signal states for this iteration
+    stA, stB = SignalProtocol.Gen()
+    dkey = os.urandom(32)
+    anaA = CovertKeyspaceProtocol(stA.rk, stA.ck_send, stA.ck_recv, stA.sk_ratchet, stA.pk_ratchet_peer, dkey)
+    anaB = CovertKeyspaceProtocol(stB.rk, stB.ck_send, stB.ck_recv, stB.sk_ratchet, stB.pk_ratchet_peer, dkey)
+
+    # Encryption benchmark
+    enc_results = signal_encryption_benchmark_pair(stA, stB, anaA, anaB, signal_iterations, msg_len)
+    standard_enc_times.append(enc_results['standard_enc'])
+    anamorphic_enc_times.append(enc_results['anamorphic_enc'])
+
+    # Decryption benchmark
+    dec_results = signal_decryption_benchmark_pair(stA, stB, anaA, anaB, signal_iterations, msg_len)
+    standard_dec_times.append(dec_results['standard_dec'])
+    anamorphic_dec_times.append(dec_results['anamorphic_dec'])
+
+
+plot_overhead(
+    signal_msg_lengths,
+    standard_enc_times,
+    anamorphic_enc_times,
+    "Encryption: Standard vs Anamorphic",
+    signal_iterations
+)
+
+plot_overhead(
+    signal_msg_lengths,
+    standard_dec_times,
+    anamorphic_dec_times,
+    "Decryption: Standard vs Anamorphic",
+    signal_iterations
+)
