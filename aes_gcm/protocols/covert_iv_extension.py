@@ -1,6 +1,7 @@
 import os
 from .aes_gcm import AESGCMProtocol
-from ..utils.prf import prf
+from ..utils.prf import prf 
+from ..utils.xor import xor_bytes 
 
 class CovertIVProtocol(AESGCMProtocol):
 
@@ -16,7 +17,7 @@ class CovertIVProtocol(AESGCMProtocol):
 
         mask = prf(self.dkey, self.senderCtr)
         
-        iv = bytes(a ^ b for a, b in zip(mask, m_c)) 
+        iv = xor_bytes(mask, m_c)
 
         ciphertext = self.aes.encrypt(iv, m, None)
 
@@ -31,7 +32,7 @@ class CovertIVProtocol(AESGCMProtocol):
 
         mask = prf(self.dkey, self.receiverCtr)
 
-        m_c = bytes(a ^ b for a, b in zip(mask, iv)) 
+        m_c = xor_bytes(mask, iv)
 
         self.receiverCtr = (self.receiverCtr + 1) % (2**32)
 

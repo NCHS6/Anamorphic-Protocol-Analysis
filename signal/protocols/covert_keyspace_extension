@@ -1,0 +1,65 @@
+import os
+from .signal import SignalProtocol
+from ..utils.prf import prf
+from ..utils.kdf import kdf_chain, kdf_root
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives.asymmetric import x25519
+
+
+class CovertKeyspaceProtocol(SignalProtocol):
+    """SignalState with anamorphic covert 16-bit channel"""
+
+    def __init__(self, rk, ck_send, ck_recv, sk_ratchet, pk_ratchet_peer, dkey: bytes):
+        super().__init__(rk, ck_send, ck_recv, sk_ratchet, pk_ratchet_peer)
+        self.dkey = dkey  # shared secret for PRF
+
+    def aSend(self, m: bytes, m_c: bytes):
+        """
+        Send a normal message m and embed 16-bit covert m_c
+        Returns header, iv, ciphertext
+        """
+        if len(m_c) != 2:
+            raise ValueError("Covert message must be 16 bits (2 bytes)")
+
+        # --- Rejection sampling of ephemeral ratchet key ---
+        while True:
+            sk = x25519.X25519PrivateKey.generate()
+            pk = sk.public_key()
+            pk_bytes = pk.public_bytes()
+            if prf(self.dkey, pk_bytes, 2) == m_c:
+                break
+
+        self.sk_ratchet = sk  # update ephemeral ratchet
+
+        # --- Symmetric ratchet for message ---
+        mk, self.ck_send = kdf_chain(self.ck_send)
+        aes = AESGCM(mk)
+        iv = os.urandom(12)
+        ciphertext = aes.encrypt(iv, m, None)
+
+        header = {"pk_ratchet": pk}
+
+        return header, iv, ciphertext
+
+    def aRecv(self, header: dict, iv: bytes, ciphertext: bytes):
+        """
+        Receive message, extract covert 16-bit message
+        Returns plaintext, covert
+        """
+        pk_peer = header["pk_ratchet"]
+
+        # Extract covert message
+        covert = prf(self.dkey, pk_peer.public_bytes(), 2)
+
+        # Update root and chain if asymmetric ratchet occurred
+        if pk_peer.public_bytes() != self.pk_ratchet_peer.public_bytes():
+            dh = self.sk_ratchet.exchange(pk_peer)
+            self.rk, self.ck_recv = kdf_root(self.rk, dh)
+            self.pk_ratchet_peer = pk_peer
+
+        # Symmetric ratchet for normal message
+        mk, self.ck_recv = kdf_chain(self.ck_recv)
+        aes = AESGCM(mk)
+        plaintext = aes.decrypt(iv, ciphertext, None)
+
+        return plaintext, covert

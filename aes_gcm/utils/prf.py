@@ -2,7 +2,7 @@ import hmac
 import hashlib
 
 def prf(dkey: bytes, ctr: int) -> bytes:
-    """Compute Pseudo-random bit string"""
+    """Compute Pseudo-random byte string"""
     
     ctr_bytes = ctr.to_bytes(4, "big")
 

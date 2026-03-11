@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 from aes_gcm.protocols.aes_gcm import AESGCMProtocol
 from aes_gcm.protocols.covert_iv_extension import CovertIVProtocol
 
-from experiments.demo import run_standard_demo, run_anamorphic_demo
-from experiments.benchmark import encryption_benchmark, decryption_benchmark
+from aes_gcm.experiments.demo import run_standard_demo, run_anamorphic_demo
+from aes_gcm.experiments.benchmark import encryption_benchmark, decryption_benchmark
 
 
 aes = AESGCMProtocol()
@@ -26,7 +26,7 @@ run_anamorphic_demo(covert)
 
 
 # --- Benchmark parameters ---
-iterations = 10000 
+iterations = 100000 
 msg_lengths = [64, 256, 1024, 4096, 8192]  # bytes
 
 standard_enc_times = []
@@ -47,7 +47,7 @@ for msg_len in msg_lengths:
     standard_dec_times.append(dec_results['standard_dec'])
     anamorphic_dec_times.append(dec_results['anamorphic_dec'])
 
-def plot_overhead(msg_lengths, standard, anamorphic, title):
+def plot_overhead(msg_lengths, standard, anamorphic, title, iterations):
 
     standard = np.array(standard)
     anamorphic = np.array(anamorphic)
@@ -111,8 +111,8 @@ def plot_overhead(msg_lengths, standard, anamorphic, title):
         )
 
 
-    ax.set_xlabel("Message length (bytes)")
-    ax.set_ylabel("Time (seconds × 10$^{-5}$)")
+    ax.set_xlabel("Message Length (bytes)")
+    ax.set_ylabel(f"Average Time over {iterations} Iterations (seconds × 10$^{-5}$)")
     ax.set_title(title)
 
     ax.set_xticks(x)
@@ -131,12 +131,14 @@ plot_overhead(
     msg_lengths,
     standard_enc_times,
     anamorphic_enc_times,
-    "Encryption: Standard vs Anamorphic"
+    "Encryption: Standard vs Anamorphic",
+    iterations
 )
 
 plot_overhead(
     msg_lengths,
     standard_dec_times,
     anamorphic_dec_times,
-    "Decryption: Standard vs Anamorphic"
+    "Decryption: Standard vs Anamorphic",
+    iterations
 )
