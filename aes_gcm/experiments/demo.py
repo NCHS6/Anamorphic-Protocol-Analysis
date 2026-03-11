@@ -1,6 +1,7 @@
 import os
 
-def run_standard_demo(protocol):
+
+def run_standard_aes_demo(protocol):
     protocol.Gen()
 
     print("AES-GCM:")
@@ -16,7 +17,7 @@ def run_standard_demo(protocol):
     print("Overt recovered:", m == message)
 
 
-def run_anamorphic_demo(protocol):
+def run_anamorphic_aes_demo(protocol):
     protocol.Gen()
 
     print("covert-IV extension:")

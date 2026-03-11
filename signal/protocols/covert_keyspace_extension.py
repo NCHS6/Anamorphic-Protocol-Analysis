@@ -4,6 +4,7 @@ from ..utils.prf import prf
 from ..utils.kdf import kdf_chain, kdf_root
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.asymmetric import x25519
+from cryptography.hazmat.primitives import serialization
 
 
 class CovertKeyspaceProtocol(SignalProtocol):
@@ -25,13 +26,17 @@ class CovertKeyspaceProtocol(SignalProtocol):
         while True:
             sk = x25519.X25519PrivateKey.generate()
             pk = sk.public_key()
-            pk_bytes = pk.public_bytes()
+            pk_bytes = pk.public_bytes(
+                encoding=serialization.Encoding.Raw,
+                format=serialization.PublicFormat.Raw
+            )
             if prf(self.dkey, pk_bytes, 2) == m_c:
                 break
 
-        self.sk_ratchet = sk  # update ephemeral ratchet
-
-        # --- Symmetric ratchet for message ---
+        dh = sk.exchange(self.pk_ratchet_peer)
+        self.rk, self.ck_send = kdf_root(self.rk, dh)
+        self.sk_ratchet = sk  
+        
         mk, self.ck_send = kdf_chain(self.ck_send)
         aes = AESGCM(mk)
         iv = os.urandom(12)
@@ -48,11 +53,20 @@ class CovertKeyspaceProtocol(SignalProtocol):
         """
         pk_peer = header["pk_ratchet"]
 
+        pk_peer_bytes = pk_peer.public_bytes(
+            encoding=serialization.Encoding.Raw,
+            format=serialization.PublicFormat.Raw
+        )
+        pk_st_bytes = self.pk_ratchet_peer.public_bytes(
+            encoding=serialization.Encoding.Raw,
+            format=serialization.PublicFormat.Raw
+        )
+
         # Extract covert message
-        covert = prf(self.dkey, pk_peer.public_bytes(), 2)
+        covert = prf(self.dkey, pk_peer_bytes, 2)
 
         # Update root and chain if asymmetric ratchet occurred
-        if pk_peer.public_bytes() != self.pk_ratchet_peer.public_bytes():
+        if pk_peer_bytes != pk_st_bytes:
             dh = self.sk_ratchet.exchange(pk_peer)
             self.rk, self.ck_recv = kdf_root(self.rk, dh)
             self.pk_ratchet_peer = pk_peer
