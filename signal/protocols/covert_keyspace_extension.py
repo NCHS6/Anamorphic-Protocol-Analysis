@@ -10,27 +10,34 @@ from cryptography.hazmat.primitives import serialization
 class CovertKeyspaceProtocol(SignalProtocol):
     """SignalState with anamorphic covert 16-bit channel"""
 
-    def __init__(self, rk, ck_send, ck_recv, sk_ratchet, pk_ratchet_peer, dkey: bytes):
+    def __init__(self, rk, ck_send, ck_recv, sk_ratchet, pk_ratchet_peer, dkey: bytes, covert_bits: int):
         super().__init__(rk, ck_send, ck_recv, sk_ratchet, pk_ratchet_peer)
-        self.dkey = dkey  # shared secret for PRF
+        self.dkey = dkey
+        self.covert_bits = covert_bits
 
-    def aSend(self, m: bytes, m_c: bytes):
+        self.outlen = (covert_bits + 7) // 8
+        self.mask = (1 << covert_bits) - 1
+
+    def aSend(self, m: bytes, m_c_value: int):
         """
         Send a normal message m and embed 16-bit covert m_c
         Returns header, iv, ciphertext
         """
-        if len(m_c) != 2:
-            raise ValueError("Covert message must be 16 bits (2 bytes)")
 
-        # --- Rejection sampling of ephemeral ratchet key ---
+        m_c_value &= self.mask
+
         while True:
             sk = x25519.X25519PrivateKey.generate()
             pk = sk.public_key()
+
             pk_bytes = pk.public_bytes(
                 encoding=serialization.Encoding.Raw,
                 format=serialization.PublicFormat.Raw
             )
-            if prf(self.dkey, pk_bytes, 2) == m_c:
+
+            prf_out = int.from_bytes(prf(self.dkey, pk_bytes, self.outlen), "big")
+
+            if (prf_out & self.mask) == m_c_value:
                 break
 
         dh = sk.exchange(self.pk_ratchet_peer)
@@ -62,18 +69,18 @@ class CovertKeyspaceProtocol(SignalProtocol):
             format=serialization.PublicFormat.Raw
         )
 
-        # Extract covert message
-        covert = prf(self.dkey, pk_peer_bytes, 2)
+        prf_bytes = prf(self.dkey, pk_peer_bytes, self.outlen)
+        prf_int = int.from_bytes(prf_bytes, "big")
 
-        # Update root and chain if asymmetric ratchet occurred
+        covert_value = prf_int & self.mask
+
         if pk_peer_bytes != pk_st_bytes:
             dh = self.sk_ratchet.exchange(pk_peer)
             self.rk, self.ck_recv = kdf_root(self.rk, dh)
             self.pk_ratchet_peer = pk_peer
 
-        # Symmetric ratchet for normal message
         mk, self.ck_recv = kdf_chain(self.ck_recv)
         aes = AESGCM(mk)
         plaintext = aes.decrypt(iv, ciphertext, None)
 
-        return plaintext, covert
+        return plaintext, covert_value

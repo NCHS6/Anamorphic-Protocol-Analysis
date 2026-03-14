@@ -13,8 +13,6 @@ class SignalProtocol:
         self.sk_ratchet = sk_ratchet
         self.pk_ratchet_peer = pk_ratchet_peer
 
-    # ---------- Gen / Handshake ----------
-
     def Gen():
         """Generate initial state for two parties (Alice/Bob)"""
         skA = x25519.X25519PrivateKey.generate()
@@ -32,8 +30,6 @@ class SignalProtocol:
         stB = SignalProtocol(rk, ck_recv, ck_send, skB, pkA)
 
         return stA, stB
-
-    # ---------- Send / Recv ----------
 
     def Send(self, m, asymmetric = False):
         """Send a message using asymmetric or symmetric ratchet"""
