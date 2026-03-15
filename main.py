@@ -31,7 +31,7 @@ run_anamorphic_aes_demo(covert)
 
 # --- Benchmark parameters ---
 iterations = 100000
-msg_lengths = [64, 256, 1024, 4096, 8192]  # bytes
+msg_lengths = [64, 256, 1024, 4096, 8192]
 
 standard_enc_times = []
 anamorphic_enc_times = []
@@ -50,7 +50,6 @@ for msg_len in msg_lengths:
     dec_results = decryption_benchmark(aes, covert, iterations, msg_len)
     standard_dec_times.append(dec_results['standard_dec'])
     anamorphic_dec_times.append(dec_results['anamorphic_dec'])
-
 
 plot_overhead(
     msg_lengths,
@@ -76,8 +75,8 @@ run_anamorphic_signal_demo()
 
 # --- Signal benchmark setup ---
 signal_msg_lengths = 256
-signal_cov_msg_lengths = [1,4,8,16,20]
-signal_iterations = 100000
+signal_cov_msg_lengths = [1,4,8,16]
+signal_iterations = 500
 
 standard_enc_times = []
 anamorphic_enc_times = []

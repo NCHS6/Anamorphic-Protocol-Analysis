@@ -54,7 +54,7 @@ def plot_overhead(msg_lengths, standard, anamorphic, title, iterations):
         raw = overhead[i]
         pct = (raw / standard[i]) * 100
 
-        label = f"+{pct:.2f}%"
+        label = f"+{pct:.0f}%"
 
         ax.text(
             x[i],
@@ -62,21 +62,21 @@ def plot_overhead(msg_lengths, standard, anamorphic, title, iterations):
             label,
             ha="center",
             va="center",
-            fontsize=7,
+            fontsize=10,
             color="black"
         )
 
 
-    ax.set_xlabel("Message Length (bytes)")
-    ax.set_ylabel(f"Average Time over {iterations} Iterations (seconds × 10$^{-5}$)")
-    ax.set_title(title)
+    ax.set_xlabel("Overt Message Length (bytes)", fontsize=12)
+    ax.set_ylabel(f"Average Time over {iterations} Iterations \n(seconds × 10$^{-5}$)", fontsize=12)
+    ax.set_title(title, fontsize=12)
 
     ax.set_xticks(x)
     ax.set_xticklabels(msg_lengths)
     
     ax.grid(axis="y", linestyle="--", alpha=0.5)
 
-    ax.legend(fontsize=9)
+    ax.legend(fontsize=11)
 
     plt.tight_layout()
     plt.savefig(title[:18] + ".png", dpi = 600)
@@ -87,12 +87,9 @@ def plot_overhead_log(cov_msg_lengths, standard, anamorphic, title, iterations, 
 
     standard = np.array(standard)
     anamorphic = np.array(anamorphic)
-    print(standard)
-    
 
     overhead = anamorphic - standard
 
-    print(overhead)
 
     if log != True:
         scale = 1e5
@@ -136,9 +133,8 @@ def plot_overhead_log(cov_msg_lengths, standard, anamorphic, title, iterations, 
         y_mid = (y_bottom + y_top) / 2
 
         raw = overhead[i]
-        pct = (raw / standard[i]) * 100
 
-        label = f"+{pct:.2e}%"
+        label = f"+{raw:.0e}s"
 
         ax.text(
             x[i],
@@ -146,29 +142,31 @@ def plot_overhead_log(cov_msg_lengths, standard, anamorphic, title, iterations, 
             label,
             ha="center",
             va="center",
-            fontsize=7,
+            fontsize=10,
             color="black"
         )
 
-    ax.set_xlabel("Covert Message Length (Bits)")
+    ax.set_xlabel("Covert Message Length (Bits)", fontsize=12)
     if log:
-        ax.set_ylabel(f"Average Time over {iterations} Iterations (log(seconds))")
+        ax.set_ylabel(f"Average Time over {iterations} Iterations \n(seconds)", fontsize=12)
     else:
-        ax.set_ylabel(f"Average Time over {iterations} Iterations (seconds × 10$^{-5}$)")
+        ax.set_ylabel(f"Average Time over {iterations} Iterations \n(seconds × 10$^{-5}$)", fontsize=12)
 
 
-    ax.set_title(title)
+    ax.set_title(title, fontsize=12)
 
     ax.set_xticks(x)
     ax.set_xticklabels(cov_msg_lengths)
 
     if log:
-        ax.set_yscale("symlog", linthresh=1e-4)
+        ax.set_yscale("symlog", linthresh=max(standard)*10)
+        ax.set_ylim(bottom=0)
+
 
         
     ax.grid(axis="y", linestyle="--", alpha=0.5, which="both")
 
-    ax.legend(fontsize=9)
+    ax.legend(fontsize=11)
 
     plt.tight_layout()
     plt.savefig(title[:17] + "_log.png", dpi = 600)

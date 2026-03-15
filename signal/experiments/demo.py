@@ -25,7 +25,6 @@ def run_standard_signal_demo():
 
 
 def run_anamorphic_signal_demo():
-    # Shared secret for covert channel
     dkey = os.urandom(32)
 
     # Initialize Signal states
