@@ -1,14 +1,24 @@
+
 # Anamorphic Protocol Analysis
 
-This project implements and evaluates an **anamorphic extension of AES-GCM** that embeds a covert communication channel into the IV generation process. The goal is to compare the **performance overhead** introduced by the covert-IV construction with standard AES-GCM encryption and decryption.
+This project implements and evaluates **anamorphic cryptographic extensions** that embed covert communication channels within standard cryptographic protocols.
 
-The implementation is written in **Python** and uses the `cryptography` library for AES-GCM operations.
+Two schemes are explored:
+
+**Anamorphic AES-GCM (Covert-IV Scheme)**
+Embeds covert data into the AES-GCM initialization vector (IV).
+
+**Anamorphic Signal (Covert-Keyspace Scheme)**
+Embeds covert data within the public key space of Signal’s Diffie–Hellman ratchet using rejection sampling.
+
+The goal of this project is to evaluate the computational overhead and practical feasibility of these covert channels compared to their standard implementations.
+
+The implementation is written in **Python** and uses the `cryptography` library for cryptographic primitives.
 
 ---
 
 # Overview
 
-Two protocols are implemented and compared.
 
 ## 1. Standard AES-GCM
 
@@ -46,28 +56,73 @@ Where:
 
 The receiver can recover the covert message by recomputing the mask and reversing the XOR operation.
 
+## 3. Standard Signal
+
+A baseline implementation of Signal using AES-GCM for symmetric encryption.
+
+Operations:
+
+* `Gen()` – generate a session key
+* `Send(m, asymmetric)` – encrypt a message
+* `Recv(header, iv, c)` – decrypt a ciphertext
+
+## 4. Anamorphic Covert-Keyspace Extension
+
+This extension embeds covert messages into the Diffie–Hellman ratchet public key used in the Signal protocol.
+
+The sender repeatedly generates candidate public keys until one satisfies:
+
+```
+PRF(dkey, pk) = m_c 
+```
+
+Where:
+
+* `pk` is a candidate ratchet public key
+* `dkey` is a covert key shared between communicating parties
+* `m_c` is a covert message
 ---
 
 # Project Structure
 
 ```
 aes_gcm/
-    protocols/
-        aes_gcm.py
-        covert_iv_extension.py
-    utils/
-        prf.py
-
-experiments/
-    benchmark.py
-    demo.py
-
+│
+├── protocols/
+│   ├── aes_gcm.py
+│   └── covert_iv_extension.py
+│
+├── utils/
+│   ├── prf.py
+│   └── xor.py
+│
+├── experiments/
+│   ├── benchmark.py
+│   └── demo.py
+│
+signal/
+│
+├── protocols/
+│   ├── signal.py
+│   └── covert_keyspace_extension.py
+│
+├── utils/
+│   ├── kdf.py
+│   └── prf.py
+│
+├── experiments/
+│   ├── benchmark.py
+│   └── demo.py
+│
+plots.py
 main.py
 requirements.txt
 README.md
 ```
 
 ### Key Components
+
+# Protocols
 
 **`aes_gcm/protocols/aes_gcm.py`**
 
@@ -82,6 +137,23 @@ aEnc(m, m_c)
 aDec(iv, c)
 ```
 
+**`signal/protocols/signal.py`**
+
+Implements a simplified version of the Signal Double Ratchet protocol
+
+**`signal/protocols/covert_keyspace_extension.py`**
+
+Implements the anamorphic Signal extension:
+
+```
+aSend(m, m_c)
+aRecv(header, iv, ciphertext)
+```
+
+Covert messages are embedded into the ratchet public key using rejection sampling.
+
+# Utilities
+
 **`aes_gcm/utils/prf.py`**
 
 Defines the pseudorandom function:
@@ -92,6 +164,20 @@ PRF(dkey, ctr) = HMAC-SHA256(dkey, ctr)[:12]
 
 The output is truncated to **12 bytes** to match the 96-bit IV requirement of AES-GCM.
 
+**`aes_gcm/utils/xor.py`**
+
+Provides helper utilities for XOR operations used in IV masking.
+
+**`signal/utils/kdf.py`**
+
+Implements key derivation functions used in the Signal ratchet.
+
+**`signal/utils/prf.py`**
+
+Defines the pseudorandom function used in rejection sampling. Truncates outputs to the length of the covert message.
+
+# Experiments
+
 **`experiments/demo.py`**
 
 Provides simple demonstrations verifying that:
@@ -101,18 +187,21 @@ Provides simple demonstrations verifying that:
 
 **`experiments/benchmark.py`**
 
-Implements performance benchmarks comparing:
+Implements performance benchmarks comparing standard schemes to the anamorphic ones.
 
-* standard AES-GCM
-* the anamorphic covert-IV protocol
+# Plots
 
-**`main.py`**
+`plots.py` generates visualizations of performance overhead, including:
 
-Runs the benchmarks across multiple message lengths and generates plots of the results.
+* encryption timing comparisons
+* decryption timing comparisons
+* overhead introduced by covert channels
+
+Plots are exported as PNG files.
 
 ---
 
-# Installation
+# Running the experiments
 
 Clone the repository and install dependencies:
 
@@ -120,9 +209,17 @@ Clone the repository and install dependencies:
 pip install -r requirements.txt
 ```
 
+Clone the repository and install dependencies:
+
+Run the main evaluation script:
+```
+python main.py
+```
+
 Dependencies:
 
 ```
 cryptography
 matplotlib
+numpy
 ```
